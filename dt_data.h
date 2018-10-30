@@ -21,6 +21,12 @@ typedef struct database_img_data
 	int detect_conf_id;
 	float detect_conf_value;
 
+        // boundingbox
+        int bb_x;
+        int bb_y;
+        int bb_width;
+        int bb_height;
+
 	public:
 	database_img_data():img_path("./imagedata//"),detect_flag("Y")
 	{
@@ -30,6 +36,7 @@ typedef struct database_img_data
 	{
 
 	}
+
 }img_data;
 
 
