@@ -5,12 +5,13 @@
 
 using namespace std;
 
-// config caffe model file and path;
-class caffe_models
+
+// models file base class
+class models
 {
 public:
-    caffe_models();
-    virtual ~caffe_models();
+    models(){}
+    virtual ~models(){}
 
 public:
     inline string get_model_file()
@@ -30,49 +31,40 @@ public:
         return label_file;
     }
 
-protected:
-
-private:
+public:
     string model_file;
     string trained_model;
     string mean_file;
     string label_file;
+};
+
+
+// config caffe model file and path
+class caffe_models : public models
+{
+public:
+    caffe_models();
+    ~caffe_models();
+
+};
+
+
+// config vgg-ssd caffe model file and path
+class ssd_models : public models
+{
+public:
+    ssd_models();
+    ~ssd_models();
 
 };
 
 
 // config faster rcnn model file and weights
-class faster_rcnn_models
+class faster_rcnn_models : public models
 {
 public:
-	faster_rcnn_models();
-	~faster_rcnn_models();
-
-public:
-	inline string get_model_file()
-	{
-		return model_file;
-	}
-	inline string get_trained_model()
-	{
-		return trained_model;
-	}
-	inline string get_mean_file()
-	{
-		return mean_file;
-	}
-	inline string get_lable_file()
-	{
-		return lable_file;
-	}
-
-protected:
-
-private:
-	string model_file;
-	string trained_model;
-	string mean_file;
-	string lable_file;
+    faster_rcnn_models();
+    ~faster_rcnn_models();
 
 };
 
