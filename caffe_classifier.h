@@ -19,7 +19,7 @@ using std::string;
 typedef std::pair<string, float> Prediction;
 
 
-// cooy the same file with /home/john/caffe/examples/cpp_classification/classification.cpp
+// copy the same file with /home/****/caffe/examples/cpp_classification/classification.cpp
 class caffe_classifier
 {
 public:
