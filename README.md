@@ -19,6 +19,7 @@ CMakeList.txt
 a. PostgreSql
 本地连接pg，需要编译安装libpq。我的安装版本是4.0.1
 在编译安装的过程中可能会遇到pg_config/libpgfe.h找不到的问题，安装libpq-dev即可解决
+sudo apt-get install libpq-dev
 b. Mysql
 本地连接mysql，本地装有mysqlclieng/mysqlserver，则可以直接包含相关的头文件，连接相关的库文件进行数据库的操作
 
