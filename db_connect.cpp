@@ -397,21 +397,21 @@ void mysql_connect::CountData()
 void mysql_connect::InsertTableData(const char* event_id,img_data& table_data)
 {
     char insert_sql[256];
-	int res;
+    int res;
 
     conn = mysql_init(NULL);
     // connect to database
-    if(!mysql_real_connect(conn,db_host,db_user_name,db_password,db_database_name,0,NULL,0))
+    if(mysql_real_connect(conn,db_host,db_user_name,db_password,db_database_name,0,NULL,0))
     {
 
         cout << "Opened database successfully " << endl;
         // create SQL statement
-        sprintf(insert_sql,"INSERT INTO %s(%s,%s,%s,%s) VALUES(\'%s\',\'%d\',\'%d\',\'%f\')",mysql_db.get_detect_table_name(),    \
-                    mysql_db.get_event_id(),mysql_db.get_detect_type_id(),mysql_db.get_detect_conf_id(),mysql_db.get_detect_value(),    \
-                    event_id,table_data.detect_type_id,table_data.detect_conf_id,table_data.detect_conf_value);
+        sprintf(insert_sql,"INSERT INTO %s(%s,%s,%s,%s,%s,%s,%s) VALUES(\'%s\',\'%d\',\'%d\',\'%d\',\'%d\',\'%d\',\'%f\')",mysql_db.get_detect_table_name(),    \
+                    mysql_db.get_event_id(),mysql_db.get_detect_type_id(),mysql_db.get_bb_x(),mysql_db.get_bb_y(),mysql_db.get_bb_width(),mysql_db.get_bb_height(),mysql_db.get_detect_value(),    \
+                    event_id,table_data.detect_type_id,table_data.bb_x,table_data.bb_y,table_data.bb_width,table_data.bb_height,table_data.detect_conf_value);
         // create a transactional object
 		res = mysql_query(conn,insert_sql);
-		if(res == 0)
+		if(res)
 		{
 			cout << "-->Insert table operation failed!" << endl;
 		}
@@ -420,8 +420,12 @@ void mysql_connect::InsertTableData(const char* event_id,img_data& table_data)
 			cout << "-->Insert table operation successfully" << endl;
 		}
             
-	}
-	mysql_close(conn);
+    }
+    else
+    {
+        cerr << "Opened database failed! " << mysql_errno(conn) << mysql_error(conn) << endl;
+    }
+    mysql_close(conn);
 
 }
 
