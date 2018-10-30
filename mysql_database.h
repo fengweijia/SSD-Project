@@ -65,6 +65,22 @@ public:
         return event_id;
     }
 
+    inline const char* get_bb_x()
+    {
+        return detect_bb_x;
+    }
+    inline const char* get_bb_y()
+    {
+        return detect_bb_y;
+    }
+    inline const char* get_bb_width()
+    {
+        return detect_bb_width;
+    }
+    inline const char* get_bb_height()
+    {
+        return detect_bb_height;
+    }
 private:
     // XdrInfo table of BlanglungDetectDB
     const char* img_table_name;

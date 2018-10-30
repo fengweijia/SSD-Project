@@ -23,7 +23,7 @@ mysql_database::mysql_database()
     detect_bb_width = "detectResult_bb_width";
     detect_bb_height = "detectResult_bb_height";
 
-    event_id = "user_id";
+    event_id = "businessDetail_id";
 }
 
 mysql_database::~mysql_database()
