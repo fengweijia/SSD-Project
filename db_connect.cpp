@@ -1,4 +1,5 @@
 #include "db_connect.h"
+#include "img_process.h"
 
 
 db_connect::db_connect() : img_num_str(""),result_num_str(""),event_id("")
@@ -281,6 +282,7 @@ mysql_connect::~mysql_connect()
 
 bool mysql_connect::ConnectDatabase()
 {
+    img_process blob_img;
     char sql[256];
 	int res;
 	MYSQL_RES *res_ptr; /*指向查询结果的指针*/
@@ -291,7 +293,7 @@ bool mysql_connect::ConnectDatabase()
     // connect to database
     if(mysql_real_connect(conn,db_host,db_user_name,db_password,db_database_name,0,NULL,0))
     {
-        cout << "Opened database successfully!" << endl;
+        //cout << "Opened database successfully!" << endl;
 		// create SQL statement
         sprintf(sql,"SELECT %s,%s,%s,octet_length(%s),%s FROM %s WHERE %s = '%s'",mysql_db.get_event_id(),mysql_db.get_img_height(),mysql_db.get_img_width(),mysql_db.get_img_data(),mysql_db.get_img_data(),mysql_db.get_img_table_name(),mysql_db.get_detect_flag(),db_opition);
 		// execute SQL query
@@ -306,33 +308,49 @@ bool mysql_connect::ConnectDatabase()
 			res_ptr = mysql_store_result(conn);
 			if(res_ptr)
 			{
-				rows = mysql_num_rows(res_ptr) + 1;
-				cols = mysql_num_fields(res_ptr);
-
-				for(int i = 1; i < rows; i++)
-				{
-					result_row = mysql_fetch_row(res_ptr);
-					for(int j = 0; j < cols; j++)
-					{
-						if(j == 1)
-						{
-							int tmp_height = static_cast<int>(strtol(result_row[j],NULL,10));
-							query_img.img_height = tmp_height;
-						}else if(j == 2)
-						{
-							int tmp_width = static_cast<int>(strtol(result_row[j],NULL,10));
-							query_img.img_width = tmp_width;
-						}else if(j == 3)
-						{
-							query_img.img_length = static_cast<int>(strtol(result_row[j],NULL,10));
-						}
-						else if(j == 4)
-						{
-							query_img.img_data_str =result_row[j];
-						}
-					}
-					img_data_container.push_back(query_img);
-				}
+                        	while(result_row = mysql_fetch_row(res_ptr))
+                                {
+                               		query_img.event_id = result_row[0];
+                         		int tmp_height = static_cast<int>(strtol(result_row[1],NULL,10));
+					query_img.img_height = tmp_height;
+					int tmp_width = static_cast<int>(strtol(result_row[2],NULL,10));
+					query_img.img_width = tmp_width;
+					query_img.img_length = static_cast<int>(strtol(result_row[3],NULL,10));
+                                        blob_img.WriteBlobImg(query_img,result_row[4]);
+                                        img_data_container.push_back(query_img);
+                                }
+//				rows = mysql_num_rows(res_ptr) + 1;
+//				cols = mysql_num_fields(res_ptr);
+//
+//				for(int i = 1; i < rows; i++)
+//				{
+//					result_row = mysql_fetch_row(res_ptr);
+//					for(int j = 0; j < cols; j++)
+//					{
+//                                                if(j == 0)
+//                                                {
+//                                                    query_img.event_id = result_row[j];
+//                                                }
+//						if(j == 1)
+//						{
+//							int tmp_height = static_cast<int>(strtol(result_row[j],NULL,10));
+//							query_img.img_height = tmp_height;
+//						}else if(j == 2)
+//						{
+//							int tmp_width = static_cast<int>(strtol(result_row[j],NULL,10));
+//							query_img.img_width = tmp_width;
+//						}else if(j == 3)
+//						{
+//							query_img.img_length = static_cast<int>(strtol(result_row[j],NULL,10));
+//						}
+//						else if(j == 4)
+//						{
+//                                                        blob_img.WriteBlobImg(query_img,result_row[j]);
+//							//query_img.img_data_str =result_row[j];
+//						}
+//					}
+//					img_data_container.push_back(query_img);
+//				}
 				mysql_free_result(res_ptr);
                 cout << "-->Select * operation successfully" << endl;
                 connect_flag = true;
@@ -404,7 +422,7 @@ void mysql_connect::InsertTableData(const char* event_id,img_data& table_data)
     if(mysql_real_connect(conn,db_host,db_user_name,db_password,db_database_name,0,NULL,0))
     {
 
-        cout << "Opened database successfully " << endl;
+        //cout << "Opened database successfully " << endl;
         // create SQL statement
         sprintf(insert_sql,"INSERT INTO %s(%s,%s,%s,%s,%s,%s,%s) VALUES(\'%s\',\'%d\',\'%d\',\'%d\',\'%d\',\'%d\',\'%f\')",mysql_db.get_detect_table_name(),    \
                     mysql_db.get_event_id(),mysql_db.get_detect_type_id(),mysql_db.get_bb_x(),mysql_db.get_bb_y(),mysql_db.get_bb_width(),mysql_db.get_bb_height(),mysql_db.get_detect_value(),    \
@@ -426,7 +444,6 @@ void mysql_connect::InsertTableData(const char* event_id,img_data& table_data)
         cerr << "Opened database failed! " << mysql_errno(conn) << mysql_error(conn) << endl;
     }
     mysql_close(conn);
-
 }
 
 // update image table detected flag
@@ -437,16 +454,15 @@ void mysql_connect::UpdateTableData(const char* event_id,img_data& table_data)
 
     conn = mysql_init(NULL);
     // connect to database
-    if(!mysql_real_connect(conn,db_host,db_user_name,db_password,db_database_name,0,NULL,0))
+    if(mysql_real_connect(conn,db_host,db_user_name,db_password,db_database_name,0,NULL,0))
     {
-
-        cout << "Opened database successfully!" << endl;
+        //cout << "Opened database successfully!" << endl;
         // create SQL statement
 		sprintf(update_sql,"UPDATE %s SET %s = '%s' WHERE %s = '%s'",mysql_db.get_img_table_name(),mysql_db.get_detect_flag(),    \
                     table_data.detect_flag,mysql_db.get_event_id(),event_id);
         // create a transactional object
 		res = mysql_query(conn,update_sql);
-		if(res == 0)
+		if(res)
 		{
             cout << "Update records operation failed!" << endl;
 		}
