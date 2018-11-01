@@ -23,7 +23,7 @@ DEFINE_string(file_type, "iamge",
 "The file type in the list_file. Currently support image and video.");
 DEFINE_string(out_file, "",
 "If provided,store the detection results in the out_file.");
-DEFINE_double(confidence_threshold, 0.8,
+DEFINE_double(confidence_threshold, 0.9,
 "Only store detections with score highter than the threshold.");
 
 boost::mutex container_mutex;
