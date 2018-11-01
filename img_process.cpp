@@ -3,11 +3,24 @@
 img_process::img_process() : count(0)
 {
     //ctor
+    tmp_buff = NULL;
+    if(tmp_buff == NULL)
+    {
+        tmp_buff = (char*)malloc(IMG_SIZE * IMG_SIZE * 10 * sizeof(char));
+    }else
+    {
+        cerr << "Malloc memory failed!" << endl;
+    }
 }
 
 img_process::~img_process()
 {
     //dtor
+    if(tmp_buff != NULL)
+    {
+        free(tmp_buff);
+        tmp_buff = NULL;
+    }
 }
 
 
@@ -106,34 +119,27 @@ int img_process::Hex2Dec(char hex_char)
 }
 
 
-void img_process::WriteBlobImg(img_data& src_img)
+void img_process::WriteBlobImg(img_data& src_data,void* img_data)
 {
-	if(src_img.img_length > 0)
+	if(img_data != NULL)
 	{
-		char* tmp_buff = (char*)malloc(src_img.img_length * sizeof(char) + 1);
-		if(NULL == tmp_buff)
-		{
-			cerr << "Malloc image error!" << endl;
-		}else
-		{
-			char* tmp_data = src_img.img_data_str;
-			memset(tmp_buff,0,src_img.img_length * sizeof(char) + 1);
-			memcpy(tmp_buff,tmp_data,src_img.img_length * sizeof(char));
-			tmp_buff[src_img.img_length * sizeof(char) + 1] = '\0';
-//
-//			stringstream pic_name;
-//			pic_name << count << ".jpg";
-//
-//			ofstream outfile;
-//			string file_path = saved_img.img_path + pic_name.str();
-//			outfile.open(file_path.c_str(),ios::binary);
-//			if(outfile.is_open())
-//			{
-//				outfile.write(tmp_buff,src_img.img_length + 1);
-//			}
-		}
-		count++;
-		free(tmp_buff);
+		if(tmp_buff)
+                {
+		    memset(tmp_buff,0,IMG_SIZE * IMG_SIZE * 10 * sizeof(char) + 1);
+		    memcpy(tmp_buff,(char*)img_data,src_data.img_length * sizeof(char));
+		    tmp_buff[src_data.img_length * sizeof(char) + 1] = '\0';
+
+		    stringstream pic_name;
+		    pic_name << src_data.event_id << ".jpg";
+
+		    ofstream outfile;
+		    string file_path = saved_img.img_path + pic_name.str();
+		    outfile.open(file_path.c_str(),ios::binary);
+		    if(outfile.is_open())
+		    {
+			outfile.write(tmp_buff,src_data.img_length + 1);
+		    }
+                 }
 	}
 	else
 	{

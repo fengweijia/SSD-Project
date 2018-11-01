@@ -6,6 +6,7 @@
 #include "opencv.hpp"
 #include "dt_data.h"
 
+#define IMG_SIZE 1024
 
 using namespace cv;
 using namespace std;
@@ -31,7 +32,7 @@ public:
 	int Hex2Dec(char hex_char);
 
 	// save img to local path(for mysql)
-	void WriteBlobImg(img_data& src_img);
+	void WriteBlobImg(img_data& src_data,void* img_data);
 
 public:
 	cv::Mat UnsharpMask(std::string file_path,cv::Mat& src_img,int un_radius,int un_amount);
@@ -42,6 +43,8 @@ private:
     int img_num;
 	img_data saved_img;
 	int count;
+    // address space for binary data
+    char* tmp_buff;
 
 };
 
