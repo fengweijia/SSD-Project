@@ -8,6 +8,7 @@
 #include "boost/thread.hpp"
 #include "boost/thread/mutex.hpp"
 #include "boost/bind.hpp"
+#include <time.h>
 //#include "./lib/faster_rcnn.hpp"
 
 using namespace caffe;
@@ -22,7 +23,7 @@ DEFINE_string(file_type, "iamge",
 "The file type in the list_file. Currently support image and video.");
 DEFINE_string(out_file, "",
 "If provided,store the detection results in the out_file.");
-DEFINE_double(confidence_threshold, 0.01,
+DEFINE_double(confidence_threshold, 0.8,
 "Only store detections with score highter than the threshold.");
 
 boost::mutex container_mutex;
@@ -30,44 +31,25 @@ boost::mutex container_mutex;
 
 void PushContainer(std::vector<img_data>* img_container)
 {
+    double start_time,stop_time,dura_time;
+    start_time = clock();
     mysql_connect mysql_conn;
-    img_process img_processer;
 
-    char* result_num_str;
-    char* insert_num_str;
-
-    // 根据数据库中DetectResult table中的数目是否与Image table中的数目一致，来获取新添加的待检测图像
-    mysql_conn.CountData();
-    result_num_str = mysql_conn.get_result_num_str();
-    insert_num_str = mysql_conn.get_img_num_str();
-	//char* insert_image;
-	//char* result_detect;
-	int insert_num = static_cast<int>(strtol(insert_num_str,NULL,10));
-	int result_num = static_cast<int>(strtol(result_num_str,NULL,10));
-    if(result_num < insert_num)
-    {
-        mysql_conn.ConnectDatabase();
-    }
-
+    mysql_conn.ConnectDatabase();
     //boost::mutex::scoped_lock lock(container_mutex);
     *img_container = mysql_conn.get_query_img();
-    if(img_container->size() > 0)
-    {
-        int i =0;
-        for(; i < img_container->size(); i++)
-        {
-            img_processer.WriteBlobImg(img_container->at(i));
-        }
-    }
-
+    stop_time = clock();
+    dura_time = (double)(stop_time - start_time);
+    cout << "data time: " << dura_time << " clock: " << CLOCKS_PER_SEC << endl;
 }
 
 
 // Detect and classify images(video) with SSD caffe models
 void DClassifyContainer(std::vector<img_data>* img_container)
 {
+    double start_time,stop_time,duration_time;
+    start_time = clock();
     mysql_connect mysql_conn;
-    img_data predict_data;
     ssd_models model_file;
 
     const string& mean_file = FLAGS_mean_file;
@@ -76,19 +58,18 @@ void DClassifyContainer(std::vector<img_data>* img_container)
     const string& out_file = FLAGS_out_file;
     const float confidence_threshold = FLAGS_confidence_threshold;
 
-    predict_data.event_id = "115";
     Detector detect_classifier(model_file.get_model_file(),model_file.get_trained_model(),mean_file,mean_value);
     
     // Set the output mode
-    std::streambuf* buf = std::cout.rdbuf();
-    std::ofstream outfile;
-    if(!out_file.empty()){
-        outfile.open(out_file.c_str());
-        if(outfile.good()){
-            buf = outfile.rdbuf();
-        }
-    }
-    std::ostream out(buf);
+//    std::streambuf* buf = std::cout.rdbuf();
+//    std::ofstream outfile;
+//    if(!out_file.empty()){
+//        outfile.open(out_file.c_str());
+//        if(outfile.good()){
+//            buf = outfile.rdbuf();
+//        }
+//    }
+//    std::ostream out(buf);
 
     // Load lables file
     const string& label_file = model_file.get_label_file();
@@ -100,52 +81,82 @@ void DClassifyContainer(std::vector<img_data>* img_container)
     }
 
     // Process image one by one
-    std::ifstream infile("testimg.txt");
-    std::string file;
-    std::string img_name;
+//    std::ifstream infile("testimg.txt");
+//    std::string file;
+//    std::string img_name;
 
-    int count = 0;
-    while(infile >> file)
+    img_data predict_data;
+    if(img_container->size() > 0)
     {
-        std::cout << file << " " << count++ << std::endl;
-        int pos = file.find_last_of('/');
-        img_name = file.substr(pos + 1,file.size() - pos);
+        for(int j = 0; j < img_container->size(); j++)
+        {
+            string tmp_event_id = img_container->at(j).event_id;
+            string detect_img_name = tmp_event_id + ".jpg";
+            detect_img_name = predict_data.img_path + detect_img_name;
+            
+             cv::Mat img = cv::imread(detect_img_name,-1);
+             CHECK(!img.empty()) << "Unable to decode image" << detect_img_name;
+             std::vector<vector<float> > detections = detect_classifier.Detect(img);
 
-        cv::Mat img = cv::imread(file,-1);
-        CHECK(!img.empty()) << "Unable to decode image" << file;
-        std::vector<vector<float> > detections = detect_classifier.Detect(img);
+             // Print the detection result
+             for(int i = 0; i < detections.size(); i++){
+                 const vector<float>& img_dection = detections[i];
+                 // Detection format: [image_id, label, score, xmin, ymin, xmax, ymax]
+                 CHECK_EQ(img_dection.size(), 7);
+                 const float score = img_dection[2];
+                 string score_str = to_string(score).substr(0,5);
+                 if(score >= confidence_threshold){
+                     cout << static_cast<int>(img_dection[1]) << " ";
+                     predict_data.detect_conf_value = score;
+                     predict_data.detect_type_id = static_cast<int>(img_dection[1]);
+                     predict_data.bb_x = static_cast<int>(img_dection[3] * img.cols);
+                     predict_data.bb_y = static_cast<int>(img_dection[4] * img.rows);
+                     predict_data.bb_width = static_cast<int>(img_dection[5] * img.cols);
+                     predict_data.bb_height = static_cast<int>(img_dection[6] * img.rows);
+                     cout << endl;
 
-        // Print the detection result
-        for(int i = 0; i < detections.size(); i++){
-            const vector<float>& img_dection = detections[i];
-            // Detection format: [image_id, label, score, xmin, ymin, xmax, ymax]
-            CHECK_EQ(img_dection.size(), 7);
-            const float score = img_dection[2];
-            string score_str = to_string(score).substr(0,5);
-            if(score >= confidence_threshold){
-                out << file << " ";
-                out << static_cast<int>(img_dection[1]) << " ";
-                predict_data.detect_conf_value = score;
-                predict_data.detect_type_id = static_cast<int>(img_dection[1]);
-                out << score << " ";
-                out << static_cast<int>(img_dection[3] * img.cols) << " ";
-                out << static_cast<int>(img_dection[4] * img.rows) << " ";
-                out << static_cast<int>(img_dection[5] * img.cols) << " ";
-                out << static_cast<int>(img_dection[6] * img.rows) << " ";
-                predict_data.bb_x = static_cast<int>(img_dection[3] * img.cols);
-                predict_data.bb_y = static_cast<int>(img_dection[4] * img.rows);
-                predict_data.bb_width = static_cast<int>(img_dection[5] * img.cols);
-                predict_data.bb_height = static_cast<int>(img_dection[6] * img.rows);
-                out << endl;
+                     mysql_conn.InsertTableData(tmp_event_id.c_str(),predict_data);
+                 }
+             }
+             mysql_conn.UpdateTableData(tmp_event_id.c_str(),predict_data);
+             img_container->pop_back();
+        }
+    }
+    stop_time = clock();
+    duration_time = (double)(stop_time - start_time);
+    cout << "detect time: " << duration_time << " clock: " << CLOCKS_PER_SEC << endl;
 
-                mysql_conn.InsertTableData(predict_data.event_id.c_str(),predict_data);
-
+//    while(infile >> file)
+//    {
+//        std::cout << file << " " << count++ << std::endl;
+//        int pos = file.find_last_of('/');
+//        img_name = file.substr(pos + 1,file.size() - pos);
+//
+//        cv::Mat img = cv::imread(file,-1);
+//        CHECK(!img.empty()) << "Unable to decode image" << file;
+//        std::vector<vector<float> > detections = detect_classifier.Detect(img);
+//
+//        // Print the detection result
+//        for(int i = 0; i < detections.size(); i++){
+//            const vector<float>& img_dection = detections[i];
+//            // Detection format: [image_id, label, score, xmin, ymin, xmax, ymax]
+//            CHECK_EQ(img_dection.size(), 7);
+//            const float score = img_dection[2];
+//            string score_str = to_string(score).substr(0,5);
+//            if(score >= confidence_threshold){
+//                out << static_cast<int>(img_dection[1]) << " ";
+//                out << score << " ";
+//                out << static_cast<int>(img_dection[3] * img.cols) << " ";
+//                out << static_cast<int>(img_dection[4] * img.rows) << " ";
+//                out << static_cast<int>(img_dection[5] * img.cols) << " ";
+//                out << static_cast<int>(img_dection[6] * img.rows) << " ";
+//
 //                cv::rectangle(img,cv::Point(static_cast<int>(img_dection[3] * img.cols),static_cast<int>(img_dection[4] * img.rows)),cv::Point(static_cast<int>(img_dection[5] * img.cols),static_cast<int>(img_dection[6] * img.rows)),cv::Scalar(255,0,0),1,1,0);
 //                cv::putText(img,detect_classifier.get_labels_from(static_cast<int>(img_dection[1])) + score_str,cv::Point(static_cast<int>(img_dection[3] * img.cols),static_cast<int>(img_dection[4] * img.rows + 10)),FONT_HERSHEY_PLAIN,1,cv::Scalar(0,255,0));
 //                cv::imwrite("test.jpg",img);
-            }
-        }
-    }
+//            }
+//        }
+//    }
    
 }
 
@@ -207,23 +218,18 @@ void PredictContainer(std::vector<img_data>* img_container)
 
 int main(int, char *argv[])
 {
-    //::google::InitGoogleLogging(argv[0]);
-
+    ::google::InitGoogleLogging(argv[0]);
     std::vector<img_data> tmp_img_container;
 
-	// for mysql test
-	//PushContainer(&tmp_img_container);
-    DClassifyContainer(&tmp_img_container);
+    while(true)
+    {
+        boost::thread img_thread(boost::bind(&PushContainer,&tmp_img_container));
+        img_thread.join();
+        boost::thread predict_thread(boost::bind(&DClassifyContainer,&tmp_img_container));
+        predict_thread.join();
 
-//    while(true)
-//    {
-//        boost::thread img_thread(boost::bind(&PushContainer,&tmp_img_container));
-//        img_thread.join();
-//        boost::thread predict_thread(boost::bind(&PredictContainer,&tmp_img_container));
-//        predict_thread.join();
-//
-//        sleep(10);
-//    }
+        sleep(1);
+    }
 
     return 0;
 }
